@@ -1,0 +1,10 @@
+{
+    "debug": true,
+    "ip": "127.0.0.1",
+    "login_url" : "http://127.0.0.1:5050/api/user/v1/token",
+    "platform_url" : "http://127.0.0.1:5050/api/platform/v1/platforms",
+    "username":"",
+    "password":"",
+    "enabled": true,
+    "location": "hangzhou"
+}
