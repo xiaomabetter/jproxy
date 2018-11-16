@@ -1,7 +1,7 @@
 package funcs
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/jproxy/g"
 	"log"
 	"net/http"
@@ -28,7 +28,6 @@ func (this *Platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	timestmap, ok := g.AccessToken()[access_token]
 	if ok {
 		nowtimestamp := int64(time.Now().Unix())
-		fmt.Println(nowtimestamp - timestmap)
 		if nowtimestamp-timestmap > 600 {
 			loginStatus := TestLogin(access_token)
 			if loginStatus {
@@ -38,12 +37,12 @@ func (this *Platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, redirect_url, http.StatusFound)
 			}
 		}
-		httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
+		go httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
 	} else {
 		loginStatus := TestLogin(access_token)
 		if loginStatus {
 			g.SetAccessToken(access_token)
-			httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
+			go httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
 		} else {
 			redirect_url := g.GetLoginUrl()
 			http.Redirect(w, r, redirect_url, http.StatusFound)
