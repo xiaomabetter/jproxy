@@ -1,78 +1,187 @@
-#!/usr/bin/env python3
-# coding: utf-8
-
-import os
+import sys,time,os,atexit,signal,logging,json
 import subprocess
-import threading
-import time
-import argparse
-import sys
-import signal
-import json
 import requests
+import argparse
 
+log = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-os.environ["PYTHONIOENCODING"] = "UTF-8"
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
-TMP_DIR = os.path.join(BASE_DIR, 'tmp')
-START_TIMEOUT = 10
-DAEMON = False
-with open('cfg.json') as f:
-    gconfig = json.loads(f.read())
-f.close()
+class Daemon:
+    startmsg = "server started with pid %s"
 
-platform_host = gconfig['heartbeat']['host']
-platform_port = gconfig['heartbeat']['port']
+    def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+        self.stdin = stdin
+        self.stdout = stdout
+        self.stderr = stderr
+        self.pidfile = pidfile
+        log.info("create daemon pidfile at:%s" % self.pidfile)
 
-get_token_url = "http://{0}:{1}{2}".format(platform_host,platform_port,gconfig['heartbeat']['verify_token_uri'])
-verif_token_url = "http://{0}:{1}{2}".format(platform_host,platform_port,gconfig['heartbeat']['verify_token_uri'])
-platform_info_url = "http://{0}:{1}{2}".format(platform_host,platform_port,gconfig['heartbeat']['platform_info_uri'])
+    def daemonize(self):
+        signal.signal(signal.SIGCHLD,signal.SIG_IGN)
+        try:
+            pid = os.fork()
+            if pid > 0:
+                log.info("1. fork 1# ----  ppid:%s" % str(os.getpid()))
+                sys.exit(0)
+        except OSError as e:
+            log.error("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.exit(1)
 
-def get_token():
-    headers = {'Content-Type': 'application/json'}
-    data = {"username":gconfig["username"],"password":gconfig["password"]}
-    r = requests.post(get_token_url,headers=headers,data=json.dumps(data))
-    token = r.json()['data']['token']
-    return token
+        log.info("2. fork 1# ----   pid:%s" % str(os.getpid()))
+        os.chdir("/")
+        os.setsid()
+        os.umask(0)
 
-def get_all_proxy():
-    token = get_token()
-    headers = {'Content-Type': 'application/json'}
-    headers['Authorization'] = token
-    r = requests.get(platform_info_url,headers=headers)
-    platforms = r.json()['data']
-    return platforms
+        try:
+            pid = os.fork()
+            if pid > 0:
+                log.info("3. fork 2# ----   ppid:%s" % str(os.getpid()))
+                os._exit(0)
+        except OSError as e:
+            log.error("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.exit(1)
 
-def start_proxy(listen_port,proxyurl):
-    os.environ.setdefault('PYTHONOPTIMIZE', '1')
+        log.info("4. fork 2# ----   pid:%s" % str(os.getpid()))
+        sys.stdout.flush()
+        sys.stderr.flush()
+        si = open(self.stdin, 'r')
+        so = open(self.stdout, 'a+')
+        se = open(self.stderr, 'a+')
+        os.dup2(si.fileno(), sys.stdin.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
 
-    if os.getuid() == 0:
-        os.environ.setdefault('C_FORCE_ROOT', '1')
+        atexit.register(self.delpid)
+        pid = str(os.getpid())
+        log.info("write pid : %s to pidfile : %s" %(pid, self.pidfile))
+        open(self.pidfile, 'w+').write("%s\n" % pid)
 
-    cmd = [
-        "./jproxy",
-        '-proxyport', str(listen_port),
-        '-proxyurl',  proxyurl,
-    ]
-    p = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, cwd=BASE_DIR)
-    return p
 
-def start_all_proxy():
-    platforms = get_all_proxy()
-    for platform in platforms:
-        start_proxy(platform['proxyport'],platform['platform_url'])
+    def delpid(self):
+        os.remove(self.pidfile)
+        log.info("do pid : %s os remove(%s)" % (str(os.getpid()), self.pidfile))
 
-def stop_all_proxy():
-    os.popen("ps aux|grep jproxy|awk '{print $2}'|xargs kill -9").read()
+    def start(self):
+        try:
+            pf = open(self.pidfile, 'r')
+            pid = int(pf.read().strip())
+            pf.close()
+        except IOError:
+            pid = None
+
+        if pid:
+            message = "pidfile %s already exist. Daemon already running?\n"
+            sys.stderr.write(message % self.pidfile)
+            log.warning(message % self.pidfile)
+            sys.exit(1)
+
+        self.daemonize()
+        self.run()
+
+    def stop(self):
+        try:
+            pf = open(self.pidfile, 'r')
+            pid = int(pf.read().strip())
+            pf.close()
+        except IOError:
+            pid = None
+
+        if not pid:
+            message = "pidfile %s does not exist. Daemon not running?\n"
+            sys.stderr.write(message % self.pidfile)
+            return  # not an error in a restart
+        try:
+            while 1:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(0.1)
+        except OSError as err:
+            err = str(err)
+            if err.find("No such process") > 0:
+                if os.path.exists(self.pidfile):
+                    os.remove(self.pidfile)
+                    log.info("pid : %s delete pidfile : %s" % (str(os.getpid()), self.pidfile))
+            else:
+                print(str(err))
+                sys.exit(1)
+        os.popen("ps aux|grep jproxy|awk '{print $2}'|xargs kill -9").read()
+
+    def restart(self):
+        self.stop()
+        self.start()
+
+    def run(self):
+        pass
+
+
+class startDaemon(Daemon):
+    def __init__(self, save_path, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
+        Daemon.__init__(self, save_path, stdin, stdout, stderr,)
+        self.initconfig()
+
+    def initconfig(self):
+        with open('cfg.json') as f:
+            globalConfig = json.loads(f.read())
+            platform_host = globalConfig['heartbeat']['host']
+            platform_port = globalConfig['heartbeat']['port']
+            verify_token_uri = globalConfig['heartbeat']['verify_token_uri']
+            platform_info_uri = globalConfig['heartbeat']['platform_info_uri']
+            self.get_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
+            self.verif_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
+            self.platform_info_url = "http://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
+            self.username = globalConfig['username']
+            self.password = globalConfig['password']
+        f.close()
+
+    def get_token(self):
+        headers = {'Content-Type': 'application/json'}
+        data = {"username": self.username, "password": self.password}
+        r = requests.post(self.get_token_url, headers=headers, data=json.dumps(data))
+        token = r.json()['data']['token']
+        return token
+
+    def get_all_proxy(self):
+        token = self.get_token()
+        headers = {'Content-Type': 'application/json'}
+        headers['Authorization'] = token
+        r = requests.get(self.platform_info_url, headers=headers)
+        platforms = r.json()['data']
+        return platforms
+
+    def start_proxy(self,listen_port, proxyurl):
+        os.environ.setdefault('PYTHONOPTIMIZE', '1')
+        if os.getuid() == 0:
+            os.environ.setdefault('C_FORCE_ROOT', '1')
+        cmd = [
+            "./jproxy",
+            '-proxyport', str(listen_port),
+            '-proxyurl', proxyurl,
+        ]
+        p = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, cwd=BASE_DIR)
+        return p
+
+    def run(self):
+        while True :
+            platforms = self.get_all_proxy()
+            for index,platform in enumerate(platforms):
+                r = os.popen("ps aux|grep %s|grep -v grep" % platform['platform_url']).read()
+                if not r:
+                    platforms.pop(index)
+                    self.start_proxy(platform['proxyport'], platform['platform_url'])
+            if platforms:
+                for platform in platforms:
+                    self.start_proxy(platform['proxyport'], platform['platform_url'])
+            time.sleep(6)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="""
         Easemob Ops service control tools;
         Example: \r\n
-        %(prog)s start all -d;
+        %(prog)s start ;
         """
     )
     parser.add_argument(
@@ -82,12 +191,17 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    pid_fn = '/tmp/daemon_class.pid'
+    err_fn = '/tmp/daemon_class.err'
+
+    sd = startDaemon(pid_fn,stderr=err_fn)
+
     action = args.action
 
     if action == "start":
-        start_all_proxy()
+        sd.start()
     elif action == "stop":
-        stop_all_proxy()
+        sd.stop()
     elif action == "restart":
-        start_all_proxy()
-        stop_all_proxy()
+        sd.stop()
+        sd.start()
