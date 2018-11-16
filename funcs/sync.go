@@ -11,7 +11,7 @@ import (
 
 func TestLogin(access_token string) bool {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", g.Config().LoginUrl, nil)
+	req, err := http.NewRequest("GET", g.GetTokenUrl(), nil)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", access_token)
 	resp, err := client.Do(req)
@@ -33,7 +33,7 @@ func GetAccessToken() {
 	bytesData, err := json.Marshal(userinfo)
 	reader := bytes.NewReader(bytesData)
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", g.Config().LoginUrl, reader)
+	req, err := http.NewRequest("POST", g.GetTokenUrl(), reader)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {

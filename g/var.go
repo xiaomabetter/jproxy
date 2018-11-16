@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 var Root string
@@ -17,11 +18,13 @@ func InitRootDir() {
 }
 
 var (
-	accessToken     string
+	loginUrl        string
+	tokenUrl        string
+	accessToken  =  make(map[string]int64)
 	accessTokenLock = new(sync.RWMutex)
 )
 
-func AccessToken() string {
+func AccessToken() map[string]int64 {
 	accessTokenLock.RLock()
 	defer accessTokenLock.RUnlock()
 	return accessToken
@@ -30,5 +33,16 @@ func AccessToken() string {
 func SetAccessToken(token string) {
 	accessTokenLock.RLock()
 	defer accessTokenLock.RUnlock()
-	accessToken = token
+	timestamp := int64(time.Now().Unix())
+	accessToken[token] = timestamp
+}
+
+func GetLoginUrl() string {
+	loginUrl = "http://" + Config().Heartbeat.Host + ":" + Config().Heartbeat.Port + Config().Heartbeat.LoginUri
+	return loginUrl
+}
+
+func GetTokenUrl() string {
+	tokenUrl = "http://" + Config().Heartbeat.Host + ":" + Config().Heartbeat.Port + Config().Heartbeat.TokenUri
+	return tokenUrl
 }

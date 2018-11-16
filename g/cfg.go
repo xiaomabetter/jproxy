@@ -7,20 +7,20 @@ import (
 	"sync"
 )
 
-type HttpConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Listen   string `json:"listen"`
-	Backdoor bool   `json:"backdoor"`
+type HeartbeatConfig struct {
+	Host        string `json:"host"`
+	Port        string `json:"port"`
+	TokenUri    string `json:"verify_token_uri"`
+	LoginUri    string `json:"login_url"`
+	PlatformUri string `json:"platform_info_uri"`
 }
 
 type GlobalConfig struct {
-	Debug       bool   `json:"debug"`
-	IP          string `json:"ip"`
-	Location    string `json:"location"`
-	Username    string `json:"username"`
-	LoginUrl    string `json:"login_url"`
-	PlatformUrl string `json:"platform_url"`
-	Password    string `json:"password"`
+	Debug     bool             `json:"debug"`
+	Location  string           `json:"location"`
+	Username  string           `json:"username"`
+	Password  string           `json:"password"`
+	Heartbeat *HeartbeatConfig `json:"heartbeat"`
 }
 
 var (
