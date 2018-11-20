@@ -146,9 +146,12 @@ class startDaemon(Daemon):
         token = self.get_token()
         headers = {'Content-Type': 'application/json'}
         headers['Authorization'] = token
-        r = requests.get(self.platform_info_url, headers=headers)
-        platforms = r.json()['data']
-        return platforms
+        try:
+            r = requests.get(self.platform_info_url, headers=headers)
+            platforms = r.json()['data']
+            return platforms
+        except Exception as e:
+            return []
 
     def start_proxy(self,listen_port, proxyurl):
         os.environ.setdefault('PYTHONOPTIMIZE', '1')
@@ -173,7 +176,7 @@ class startDaemon(Daemon):
             if platforms:
                 for platform in platforms:
                     self.start_proxy(platform['proxyport'], platform['platform_url'])
-            time.sleep(6)
+            time.sleep(60)
 
 
 if __name__ == '__main__':
