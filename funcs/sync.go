@@ -28,8 +28,8 @@ func TestLogin(access_token string) bool {
 
 func GetAccessToken() {
 	userinfo := make(map[string]interface{})
-	userinfo["username"] = g.Config().Username
-	userinfo["password"] = g.Config().Password
+	userinfo["username"] = g.Config().Heartbeat.Username
+	userinfo["password"] = g.Config().Heartbeat.Password
 	bytesData, err := json.Marshal(userinfo)
 	reader := bytes.NewReader(bytesData)
 	client := &http.Client{}

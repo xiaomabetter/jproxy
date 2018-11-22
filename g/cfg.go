@@ -8,6 +8,8 @@ import (
 )
 
 type HeartbeatConfig struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
 	Host        string `json:"host"`
 	Port        string `json:"port"`
 	TokenUri    string `json:"verify_token_uri"`
@@ -18,8 +20,6 @@ type HeartbeatConfig struct {
 type GlobalConfig struct {
 	Debug     bool             `json:"debug"`
 	Location  string           `json:"location"`
-	Username  string           `json:"username"`
-	Password  string           `json:"password"`
 	Heartbeat *HeartbeatConfig `json:"heartbeat"`
 }
 

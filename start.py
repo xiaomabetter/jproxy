@@ -120,32 +120,44 @@ class startDaemon(Daemon):
     def __init__(self, save_path, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
         Daemon.__init__(self, save_path, stdin, stdout, stderr,)
         self.initconfig()
+        self.token = None
 
     def initconfig(self):
         with open('cfg.json') as f:
             globalConfig = json.loads(f.read())
+            self.globalConfig = globalConfig
             platform_host = globalConfig['heartbeat']['host']
             platform_port = globalConfig['heartbeat']['port']
             verify_token_uri = globalConfig['heartbeat']['verify_token_uri']
             platform_info_uri = globalConfig['heartbeat']['platform_info_uri']
+            update_node_uri = globalConfig['heartbeat']['update_node_uri']
             self.get_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
             self.verif_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
             self.platform_info_url = "http://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
-            self.username = globalConfig['username']
-            self.password = globalConfig['password']
+            self.update_node_uri = "http://{0}:{1}{2}".format(platform_host, platform_port,update_node_uri)
+            self.username = globalConfig['heartbeat']['username']
+            self.password = globalConfig['heartbeat']['password']
         f.close()
 
-    def get_token(self):
+    def getToken(self):
         headers = {'Content-Type': 'application/json'}
         data = {"username": self.username, "password": self.password}
         r = requests.post(self.get_token_url, headers=headers, data=json.dumps(data))
         token = r.json()['data']['token']
-        return token
+        self.token = token
 
-    def get_all_proxy(self):
-        token = self.get_token()
+    def verifyToken(self):
         headers = {'Content-Type': 'application/json'}
-        headers['Authorization'] = token
+        headers['Authorization'] = self.token
+        r = requests.get(self.get_token_url, headers=headers)
+        data = r.json()
+        return data['status']
+
+    def getAllProxy(self):
+        if not self.token:
+            self.getToken()
+        headers = {'Content-Type': 'application/json'}
+        headers['Authorization'] = self.token
         try:
             r = requests.get(self.platform_info_url, headers=headers)
             platforms = r.json()['data']
@@ -153,7 +165,7 @@ class startDaemon(Daemon):
         except Exception as e:
             return []
 
-    def start_proxy(self,listen_port, proxyurl):
+    def startProxy(self,listen_port, proxyurl):
         os.environ.setdefault('PYTHONOPTIMIZE', '1')
         if os.getuid() == 0:
             os.environ.setdefault('C_FORCE_ROOT', '1')
@@ -165,18 +177,32 @@ class startDaemon(Daemon):
         p = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, cwd=BASE_DIR)
         return p
 
+    def updateProxyNode(self) :
+        if not self.token:
+            self.getToken()
+        headers = {'Content-Type': 'application/json'}
+        headers['Authorization'] = self.token
+        try:
+            node = {'location':self.globalConfig['location'],'outerip':self.globalConfig['outerip'],'domain':self.globalConfig['domain']}
+            r = requests.post(self.update_node_uri, headers=headers,data=json.dumps(node))
+            data = r.json()
+            return data['status']
+        except Exception as e:
+            return False
+
     def run(self):
         while True :
-            platforms = self.get_all_proxy()
+            platforms = self.getAllProxy()
+            self.updateProxyNode()
             for index,platform in enumerate(platforms):
                 r = os.popen("ps aux|grep %s|grep -v grep" % platform['platform_url']).read()
                 if not r:
                     platforms.pop(index)
-                    self.start_proxy(platform['proxyport'], platform['platform_url'])
+                    self.startProxy(platform['proxyport'], platform['platform_url'])
             if platforms:
                 for platform in platforms:
-                    self.start_proxy(platform['proxyport'], platform['platform_url'])
-            time.sleep(60)
+                    self.startProxy(platform['proxyport'], platform['platform_url'])
+            time.sleep(10)
 
 
 if __name__ == '__main__':
