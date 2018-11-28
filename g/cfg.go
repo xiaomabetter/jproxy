@@ -5,6 +5,7 @@ import (
 	"github.com/toolkits/file"
 	"log"
 	"sync"
+	"os"
 )
 
 type HeartbeatConfig struct {
@@ -20,6 +21,8 @@ type HeartbeatConfig struct {
 type GlobalConfig struct {
 	Debug     bool             `json:"debug"`
 	Location  string           `json:"location"`
+	Domain    string           `json:"domain"`
+	Outerip   string           `json:"outerip"`
 	Heartbeat *HeartbeatConfig `json:"heartbeat"`
 }
 
@@ -59,6 +62,21 @@ func ParseConfig(cfg string) {
 
 	lock.Lock()
 	defer lock.Unlock()
+
+	if c.Domain == "" || c.Outerip == "" || c.Location == "" {
+		log.Fatalln("parse config file:", cfg, "fail:", "domain or outerip or location must be set")
+		os.Exit(1)
+	}
+
+	if c.Heartbeat.Host == "" || c.Heartbeat.Username == "" || c.Heartbeat.Password == "" || c.Heartbeat.Port == ""  {
+		log.Fatalln("parse config file:", cfg, "fail:", "Host Username Password Port must be set")
+		os.Exit(1)
+	}
+
+	if c.Heartbeat.LoginUri == "" || c.Heartbeat.TokenUri == ""  {
+		log.Fatalln("parse config file:", cfg, "fail:", "LoginUri TokenUri must be set")
+		os.Exit(1)
+	}
 
 	config = &c
 

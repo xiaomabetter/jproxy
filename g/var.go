@@ -20,7 +20,7 @@ func InitRootDir() {
 var (
 	loginUrl        string
 	tokenUrl        string
-	accessToken  =  make(map[string]int64)
+	accessToken     = make(map[string]int64)
 	accessTokenLock = new(sync.RWMutex)
 )
 
@@ -38,11 +38,19 @@ func SetAccessToken(token string) {
 }
 
 func GetLoginUrl() string {
-	loginUrl = "http://" + Config().Heartbeat.Host + ":" + Config().Heartbeat.Port + Config().Heartbeat.LoginUri
+	if Config().Domain != "" {
+		loginUrl = "http://" + Config().Domain + Config().Heartbeat.LoginUri
+	} else {
+		loginUrl = "http://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.LoginUri
+	}
 	return loginUrl
 }
 
 func GetTokenUrl() string {
-	tokenUrl = "http://" + Config().Heartbeat.Host + ":" + Config().Heartbeat.Port + Config().Heartbeat.TokenUri
+	if Config().Domain != "" {
+		tokenUrl = "http://" + Config().Domain + Config().Heartbeat.TokenUri
+	} else {
+		tokenUrl = "http://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.TokenUri
+	}
 	return tokenUrl
 }
