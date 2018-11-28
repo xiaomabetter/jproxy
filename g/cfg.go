@@ -14,7 +14,7 @@ type HeartbeatConfig struct {
 	Host        string `json:"host"`
 	Port        string `json:"port"`
 	TokenUri    string `json:"verify_token_uri"`
-	LoginUri    string `json:"login_url"`
+	LoginUri    string `json:"login_uri"`
 	PlatformUri string `json:"platform_info_uri"`
 }
 
