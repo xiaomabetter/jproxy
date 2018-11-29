@@ -126,15 +126,22 @@ class startDaemon(Daemon):
         with open('cfg.json') as f:
             globalConfig = json.loads(f.read())
             self.globalConfig = globalConfig
-            platform_host = globalConfig['heartbeat']['host']
-            platform_port = globalConfig['heartbeat']['port']
             verify_token_uri = globalConfig['heartbeat']['verify_token_uri']
             platform_info_uri = globalConfig['heartbeat']['platform_info_uri']
             update_node_uri = globalConfig['heartbeat']['update_node_uri']
-            self.get_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
-            self.verif_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
-            self.platform_info_url = "http://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
-            self.update_node_uri = "http://{0}:{1}{2}".format(platform_host, platform_port,update_node_uri)
+            if globalConfig['domain'] != '' :
+                platform_host = globalConfig['domain']
+                self.get_token_url = "http://{0}{1}".format(platform_host, verify_token_uri)
+                self.verif_token_url = "http://{0}{1}".format(platform_host,verify_token_uri)
+                self.platform_info_url = "http://{0}{1}".format(platform_host,platform_info_uri)
+                self.update_node_uri = "http://{0}{1}".format(platform_host,update_node_uri)
+            else:
+                platform_host = globalConfig['heartbeat']['host']
+                platform_port = globalConfig['heartbeat']['port']
+                self.get_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
+                self.verif_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
+                self.platform_info_url = "http://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
+                self.update_node_uri = "http://{0}:{1}{2}".format(platform_host, platform_port,update_node_uri)
             self.username = globalConfig['heartbeat']['username']
             self.password = globalConfig['heartbeat']['password']
         f.close()
