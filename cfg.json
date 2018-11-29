@@ -1,13 +1,17 @@
 {
     "debug": true,
     "heartbeat": {
+        "username":"",
+        "password":"",
+        "domain":"",
         "host":"127.0.0.1", 
         "port":"5050", 
-        "login_uri":"/usr/login", 
+        "login_uri":"/user/login", 
         "verify_token_uri":"/api/user/v1/token", 
-        "platform_info_uri":"/api/platform/v1/platforms"
+        "platform_info_uri":"/api/platform/v1/platforms",
+        "update_node_uri":"/api/platform/v1/proxy"
     },
-    "username":"",
-    "password":"",
+    "outerip":"172.17.2.236",
+    "domain":"",
     "location": "hangzhou"
 }

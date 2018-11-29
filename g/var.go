@@ -38,19 +38,19 @@ func SetAccessToken(token string) {
 }
 
 func GetLoginUrl() string {
-	if Config().Domain != "" {
-		loginUrl = "http://" + Config().Domain + Config().Heartbeat.LoginUri
+	if Config().Heartbeat.Domain != "" {
+		loginUrl = "https://" + Config().Heartbeat.Domain + Config().Heartbeat.LoginUri
 	} else {
-		loginUrl = "http://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.LoginUri
+		loginUrl = "https://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.LoginUri
 	}
 	return loginUrl
 }
 
 func GetTokenUrl() string {
-	if Config().Domain != "" {
-		tokenUrl = "http://" + Config().Domain + Config().Heartbeat.TokenUri
+	if Config().Heartbeat.Domain != "" {
+		tokenUrl = "https://" + Config().Heartbeat.Domain + Config().Heartbeat.TokenUri
 	} else {
-		tokenUrl = "http://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.TokenUri
+		tokenUrl = "https://" + Config().Outerip + ":" + Config().Heartbeat.Port + Config().Heartbeat.TokenUri
 	}
 	return tokenUrl
 }

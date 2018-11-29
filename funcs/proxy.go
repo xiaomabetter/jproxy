@@ -37,12 +37,12 @@ func (this *Platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, redirect_url, http.StatusFound)
 			}
 		}
-		go httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
+		httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
 	} else {
 		loginStatus := TestLogin(access_token)
 		if loginStatus {
 			g.SetAccessToken(access_token)
-			go httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
+			httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
 		} else {
 			redirect_url := g.GetLoginUrl()
 			http.Redirect(w, r, redirect_url, http.StatusFound)

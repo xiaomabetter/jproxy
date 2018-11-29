@@ -11,6 +11,7 @@ import (
 type HeartbeatConfig struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
+	Domain      string `json:"domain"`
 	Host        string `json:"host"`
 	Port        string `json:"port"`
 	TokenUri    string `json:"verify_token_uri"`
