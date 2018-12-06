@@ -131,17 +131,17 @@ class startDaemon(Daemon):
             update_node_uri = globalConfig['heartbeat']['update_node_uri']
             if globalConfig['heartbeat']['domain'] != '' :
                 platform_host = globalConfig['heartbeat']['domain']
-                self.get_token_url = "http://{0}{1}".format(platform_host, verify_token_uri)
-                self.verif_token_url = "http://{0}{1}".format(platform_host,verify_token_uri)
-                self.platform_info_url = "http://{0}{1}".format(platform_host,platform_info_uri)
-                self.update_node_uri = "http://{0}{1}".format(platform_host,update_node_uri)
+                self.get_token_url = "https://{0}{1}".format(platform_host, verify_token_uri)
+                self.verif_token_url = "https://{0}{1}".format(platform_host,verify_token_uri)
+                self.platform_info_url = "https://{0}{1}".format(platform_host,platform_info_uri)
+                self.update_node_uri = "https://{0}{1}".format(platform_host,update_node_uri)
             else:
                 platform_host = globalConfig['heartbeat']['host']
                 platform_port = globalConfig['heartbeat']['port']
-                self.get_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
-                self.verif_token_url = "http://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
-                self.platform_info_url = "http://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
-                self.update_node_uri = "http://{0}:{1}{2}".format(platform_host, platform_port,update_node_uri)
+                self.get_token_url = "https://{0}:{1}{2}".format(platform_host, platform_port, verify_token_uri)
+                self.verif_token_url = "https://{0}:{1}{2}".format(platform_host, platform_port,verify_token_uri)
+                self.platform_info_url = "https://{0}:{1}{2}".format(platform_host, platform_port,platform_info_uri)
+                self.update_node_uri = "https://{0}:{1}{2}".format(platform_host, platform_port,update_node_uri)
             self.username = globalConfig['heartbeat']['username']
             self.password = globalConfig['heartbeat']['password']
             self.location = globalConfig['location']
@@ -190,14 +190,14 @@ class startDaemon(Daemon):
                 count = count + 1
         return False
 
-    def stopProxy(self,listen_port):
+    def stopProxy(self,proxyport):
         os.environ.setdefault('PYTHONOPTIMIZE', '1')
         if os.getuid() == 0:
             os.environ.setdefault('C_FORCE_ROOT', '1')
         success = False
         count = 1
         while not success and count <= 3:
-            cmd = "ps aux|grep %s|grep -v grep|awk '{print $2}'|xargs kill -9" % listen_port
+            cmd = "ps aux|grep jproxy|awk '{if($13 ~ \"%s\")print $2}'|xargs kill" % proxyport
             p = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE, stderr=sys.stderr)
             if p.errors is None:
                 return True
@@ -222,27 +222,32 @@ class startDaemon(Daemon):
 
     def run(self):
         while True :
-            current_platforms = []
-            new_platforms = []
+            current_platform_list = []
+            new_platform_list = []
             platforms = self.getAllProxy()
             self.updateProxyNode()
             for index,platform in enumerate(platforms):
-                if platform['location'] == self.location:
-                    new_platforms.append(platform['proxyport'])
-                    r = os.popen("ps aux|grep %s|grep -v grep" % platform['proxyport']).read()
+                if platform['location'] == self.location and platform['isproxy']:
+                    platform_url = platform['platform_url']
+                    proxyport = platform['proxyport']
+                    new_platform_list.append(proxyport)
+                    cmd = "ps aux|grep jproxy|awk '{if($13 ~ \"%s\")print}'" % proxyport
+                    r = os.popen(cmd).read()
                     if r:
-                        if platform['platform_url'] not in r:
-                            self.stopProxy(platform['proxyport'])
-                            self.startProxy(platform['proxyport'], platform['platform_url'])
+                        if platform_url != r.strip().split()[14]:
+                            r = self.stopProxy(proxyport)
+                            if r:
+                                time.sleep(3)
+                                self.startProxy(proxyport, platform_url)
                     else:
-                        self.startProxy(platform['proxyport'], platform['platform_url'])
-            p = subprocess.Popen("ps aux|grep jproxy|grep -v 'grep'| awk '{print $13}'",shell=True,
-                                 stdout=subprocess.PIPE, stderr=sys.stderr)
+                        self.startProxy(proxyport, platform_url)
+            cmd = "ps aux|grep jproxy|grep -v 'grep'| awk '{print $13}'"
+            p = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE, stderr=sys.stderr)
             for line in p.stdout.readlines():
-                current_platforms.append(line.decode().strip("\n"))
-            for proxyport in current_platforms:
-                if proxyport not in new_platforms:
-                    self.stopProxy(proxyport)
+                current_platform_list.append(line.decode().strip("\n"))
+            for port in current_platform_list:
+                if port not in new_platform_list:
+                    self.stopProxy(port)
             time.sleep(30)
 
 

@@ -37,6 +37,12 @@ func SetAccessToken(token string) {
 	accessToken[token] = timestamp
 }
 
+func DelAccessToken(token string) {
+	accessTokenLock.RLock()
+	defer accessTokenLock.RUnlock()
+	delete(accessToken,token)
+}
+
 func GetLoginUrl() string {
 	if Config().Heartbeat.Domain != "" {
 		loginUrl = "https://" + Config().Heartbeat.Domain + Config().Heartbeat.LoginUri

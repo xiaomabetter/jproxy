@@ -25,19 +25,16 @@ func (this *Platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	timestmap, ok := g.AccessToken()[access_token]
+	_, ok := g.AccessToken()[access_token]
 	if ok {
-		nowtimestamp := int64(time.Now().Unix())
-		if nowtimestamp-timestmap > 600 {
-			loginStatus := TestLogin(access_token)
-			if loginStatus {
-				g.SetAccessToken(access_token)
-			} else {
-				redirect_url := g.GetLoginUrl()
-				http.Redirect(w, r, redirect_url, http.StatusFound)
-			}
+		loginStatus := TestLogin(access_token)
+		if loginStatus {
+			httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
+		} else {
+			g.DelAccessToken(access_token)
+			redirect_url := g.GetLoginUrl()
+			http.Redirect(w, r, redirect_url, http.StatusFound)
 		}
-		httputil.NewSingleHostReverseProxy(remote).ServeHTTP(w, r)
 	} else {
 		loginStatus := TestLogin(access_token)
 		if loginStatus {
