@@ -197,7 +197,7 @@ class startDaemon(Daemon):
         success = False
         count = 1
         while not success and count <= 3:
-            cmd = "ps aux|grep jproxy|awk '{if($13 ~ \"%s\")print $2}'|xargs kill" % proxyport
+            cmd = "ps aux|grep jproxy|awk '{if($13 == \"%s\")print $2}'|xargs kill" % proxyport
             p = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE, stderr=sys.stderr)
             if p.errors is None:
                 return True
@@ -231,7 +231,7 @@ class startDaemon(Daemon):
                     platform_url = platform['platform_url']
                     proxyport = platform['proxyport']
                     new_platform_list.append(proxyport)
-                    cmd = "ps aux|grep jproxy|awk '{if($13 ~ \"%s\")print}'" % proxyport
+                    cmd = "ps aux|grep jproxy|awk '{if($13 == \"%s\")print}'" % proxyport
                     r = os.popen(cmd).read()
                     if r:
                         if platform_url != r.strip().split()[14]:

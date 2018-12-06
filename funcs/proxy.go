@@ -17,14 +17,18 @@ type Platform struct {
 
 func (this *Platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var access_token string
-	cookie, err := r.Cookie("access_token")
-	if err == nil {
-		access_token = cookie.Value
-	}
 	remote, err := url.Parse(this.platformUrl)
 	if err != nil {
 		panic(err)
 	}
+	cookie, err := r.Cookie("platform_access_token")
+	if err == nil {
+		access_token = cookie.Value
+	} else {
+		redirect_url := g.GetLoginUrl()
+		http.Redirect(w, r, redirect_url, http.StatusFound)
+	}
+
 	_, ok := g.AccessToken()[access_token]
 	if ok {
 		loginStatus := TestLogin(access_token)
